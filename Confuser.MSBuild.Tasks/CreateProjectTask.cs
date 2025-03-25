@@ -80,7 +80,7 @@ namespace Confuser.MSBuild.Tasks {
 				project.ProbePaths.Add(probePath);
 			}
 
-			project.Save().Save(ResultProject.ItemSpec);
+			project.Save(Path.GetDirectoryName(ResultProject.ItemSpec)).Save(ResultProject.ItemSpec);
 
 			return true;
 		}

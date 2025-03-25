@@ -568,18 +568,28 @@ namespace Confuser.Core.Project {
 		///     Saves the project as XML document.
 		/// </summary>
 		/// <returns>The serialized project XML.</returns>
-		public XmlDocument Save() {
+		public XmlDocument Save(string baseDir) {
 			var xmlDoc = new XmlDocument();
 			xmlDoc.Schemas.Add(Schema);
 
 			XmlElement elem = xmlDoc.CreateElement("project", Namespace);
 
+			Func<string, string> abs2rel = (f) => 
+			{
+				if (string.Compare(Path.GetPathRoot(baseDir).Replace('/','\\'), Path.GetPathRoot(f).Replace('/', '\\'), true) != 0)
+					return f;
+				Uri baseUri = new Uri(baseDir);
+				Uri fileUri = new Uri(f);
+				return baseUri.MakeRelativeUri(fileUri).ToString();
+
+			};
+
 			XmlAttribute outputAttr = xmlDoc.CreateAttribute("outputDir");
-			outputAttr.Value = OutputDirectory;
+			outputAttr.Value = abs2rel(OutputDirectory);
 			elem.Attributes.Append(outputAttr);
 
 			XmlAttribute baseAttr = xmlDoc.CreateAttribute("baseDir");
-			baseAttr.Value = BaseDirectory;
+			baseAttr.Value = abs2rel(BaseDirectory);
 			elem.Attributes.Append(baseAttr);
 
 			if (Seed != null) {
@@ -605,13 +615,13 @@ namespace Confuser.Core.Project {
 
 			foreach (string i in ProbePaths) {
 				XmlElement path = xmlDoc.CreateElement("probePath", Namespace);
-				path.InnerText = i;
+				path.InnerText = abs2rel(i);
 				elem.AppendChild(path);
 			}
 
 			foreach (string i in PluginPaths) {
 				XmlElement path = xmlDoc.CreateElement("plugin", Namespace);
-				path.InnerText = i;
+				path.InnerText = abs2rel(i);
 				elem.AppendChild(path);
 			}
 
@@ -639,8 +649,17 @@ namespace Confuser.Core.Project {
 
 			XmlElement docElem = doc.DocumentElement;
 
-			OutputDirectory = docElem.Attributes["outputDir"].Value;
-			BaseDirectory = docElem.Attributes["baseDir"].Value;
+			Uri uri = new Uri(doc.BaseURI);
+			string baseDir = Path.GetDirectoryName(uri.LocalPath);
+
+			Func<string, string> rel2abs = (f) => {
+				if (f.Contains(':'))
+					return f;
+				return Path.GetFullPath(Path.Combine(baseDir, f));
+			};
+
+			OutputDirectory = rel2abs(docElem.Attributes["outputDir"].Value);
+			BaseDirectory = rel2abs(docElem.Attributes["baseDir"].Value);
 
 			if (docElem.Attributes["seed"] != null)
 				Seed = docElem.Attributes["seed"].Value.NullIfEmpty();
@@ -668,10 +687,10 @@ namespace Confuser.Core.Project {
 					Packer.Load(i);
 				}
 				else if (i.Name == "probePath") {
-					ProbePaths.Add(i.InnerText);
+					ProbePaths.Add(rel2abs(i.InnerText));
 				}
 				else if (i.Name == "plugin") {
-					PluginPaths.Add(i.InnerText);
+					PluginPaths.Add(rel2abs(i.InnerText));
 				}
 				else {
 					var asm = new ProjectModule();

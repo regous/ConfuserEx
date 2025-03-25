@@ -91,7 +91,7 @@ namespace ConfuserEx.ViewModel {
 				FileName = sfd.FileName;
 			}
 			ConfuserProject proj = ((IViewModel<ConfuserProject>)Project).Model;
-			proj.Save().Save(FileName);
+			proj.Save(Path.GetDirectoryName(FileName)).Save(FileName);
 			Project.IsModified = false;
 			firstSaved = true;
 			return true;
